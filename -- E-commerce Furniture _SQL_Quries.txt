@@ -1,0 +1,448 @@
+-- E-commerce Furniture Dataset - SQL Analysis
+-- =============================================
+
+-- Step 1: Create Database and Table
+-- =============================================
+
+CREATE DATABASE IF NOT EXISTS furniture_ecommerce;
+USE furniture_ecommerce;
+
+-- Create the main table
+CREATE TABLE IF NOT EXISTS furniture_products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_title VARCHAR(500),
+    price DECIMAL(10, 2),
+    sold INT,
+    tag_text VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Load data from CSV (adjust path as needed)
+-- LOAD DATA INFILE 'cleaned_furniture_data.csv'
+-- INTO TABLE furniture_products
+-- FIELDS TERMINATED BY ',' 
+-- ENCLOSED BY '"'
+-- LINES TERMINATED BY '\n'
+-- IGNORE 1 ROWS;
+
+-- =============================================
+-- SECTION 1: BASIC DATA EXPLORATION
+-- =============================================
+
+-- Query 1: Total records
+SELECT COUNT(*) AS total_products 
+FROM furniture_products;
+
+-- Query 2: Overview of data
+SELECT * 
+FROM furniture_products 
+LIMIT 10;
+
+-- Query 3: Data types and structure
+DESCRIBE furniture_products;
+
+-- =============================================
+-- SECTION 2: SALES ANALYSIS
+-- =============================================
+
+-- Query 4: Total sales statistics
+SELECT 
+    COUNT(*) AS total_products,
+    SUM(sold) AS total_units_sold,
+    AVG(sold) AS avg_units_sold,
+    MIN(sold) AS min_sold,
+    MAX(sold) AS max_sold,
+    STDDEV(sold) AS std_dev_sold
+FROM furniture_products;
+
+-- Query 5: Top 10 best-selling products
+SELECT 
+    product_title,
+    price,
+    sold,
+    (price * sold) AS revenue
+FROM furniture_products
+ORDER BY sold DESC
+LIMIT 10;
+
+-- Query 6: Products with no sales
+SELECT 
+    COUNT(*) AS products_with_no_sales,
+    ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM furniture_products)), 2) AS percentage
+FROM furniture_products
+WHERE sold = 0;
+
+-- Query 7: Sales distribution by ranges
+SELECT 
+    CASE 
+        WHEN sold = 0 THEN '0 sales'
+        WHEN sold BETWEEN 1 AND 10 THEN '1-10 sales'
+        WHEN sold BETWEEN 11 AND 50 THEN '11-50 sales'
+        WHEN sold BETWEEN 51 AND 100 THEN '51-100 sales'
+        WHEN sold BETWEEN 101 AND 500 THEN '101-500 sales'
+        ELSE '500+ sales'
+    END AS sales_range,
+    COUNT(*) AS product_count,
+    ROUND(AVG(price), 2) AS avg_price,
+    SUM(sold) AS total_units
+FROM furniture_products
+GROUP BY sales_range
+ORDER BY MIN(sold);
+
+-- =============================================
+-- SECTION 3: PRICING ANALYSIS
+-- =============================================
+
+-- Query 8: Price statistics
+SELECT 
+    ROUND(AVG(price), 2) AS avg_price,
+    ROUND(MIN(price), 2) AS min_price,
+    ROUND(MAX(price), 2) AS max_price,
+    ROUND(STDDEV(price), 2) AS std_dev_price,
+    ROUND(VARIANCE(price), 2) AS variance_price
+FROM furniture_products;
+
+-- Query 9: Price distribution by ranges
+SELECT 
+    CASE 
+        WHEN price < 50 THEN 'Under $50'
+        WHEN price BETWEEN 50 AND 100 THEN '$50-$100'
+        WHEN price BETWEEN 100 AND 200 THEN '$100-$200'
+        WHEN price BETWEEN 200 AND 500 THEN '$200-$500'
+        ELSE 'Over $500'
+    END AS price_range,
+    COUNT(*) AS product_count,
+    ROUND(AVG(sold), 2) AS avg_units_sold,
+    SUM(sold) AS total_units_sold
+FROM furniture_products
+GROUP BY price_range
+ORDER BY MIN(price);
+
+-- Query 10: Most expensive products
+SELECT 
+    product_title,
+    price,
+    sold,
+    (price * sold) AS revenue
+FROM furniture_products
+ORDER BY price DESC
+LIMIT 10;
+
+-- Query 11: Best value products (high sales, reasonable price)
+SELECT 
+    product_title,
+    price,
+    sold,
+    (price * sold) AS revenue,
+    ROUND((sold / price), 2) AS sales_per_dollar
+FROM furniture_products
+WHERE sold > 0
+ORDER BY sales_per_dollar DESC
+LIMIT 10;
+
+-- =============================================
+-- SECTION 4: REVENUE ANALYSIS
+-- =============================================
+
+-- Query 12: Total revenue and statistics
+SELECT 
+    SUM(price * sold) AS total_revenue,
+    AVG(price * sold) AS avg_revenue_per_product,
+    MAX(price * sold) AS max_revenue_product,
+    COUNT(CASE WHEN sold > 0 THEN 1 END) AS revenue_generating_products
+FROM furniture_products;
+
+-- Query 13: Top 10 revenue-generating products
+SELECT 
+    product_title,
+    price,
+    sold,
+    (price * sold) AS revenue,
+    ROUND(((price * sold) / (SELECT SUM(price * sold) FROM furniture_products) * 100), 2) AS revenue_percentage
+FROM furniture_products
+WHERE sold > 0
+ORDER BY revenue DESC
+LIMIT 10;
+
+-- Query 14: Revenue contribution by price ranges
+SELECT 
+    CASE 
+        WHEN price < 50 THEN 'Under $50'
+        WHEN price BETWEEN 50 AND 100 THEN '$50-$100'
+        WHEN price BETWEEN 100 AND 200 THEN '$100-$200'
+        WHEN price BETWEEN 200 AND 500 THEN '$200-$500'
+        ELSE 'Over $500'
+    END AS price_range,
+    COUNT(*) AS product_count,
+    SUM(price * sold) AS total_revenue,
+    ROUND(AVG(price * sold), 2) AS avg_revenue_per_product
+FROM furniture_products
+GROUP BY price_range
+ORDER BY total_revenue DESC;
+
+-- =============================================
+-- SECTION 5: SHIPPING TAG ANALYSIS
+-- =============================================
+
+-- Query 15: Shipping tag distribution
+SELECT 
+    tag_text,
+    COUNT(*) AS product_count,
+    ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM furniture_products)), 2) AS percentage
+FROM furniture_products
+GROUP BY tag_text
+ORDER BY product_count DESC;
+
+-- Query 16: Sales performance by shipping type
+SELECT 
+    tag_text,
+    COUNT(*) AS product_count,
+    SUM(sold) AS total_units_sold,
+    ROUND(AVG(sold), 2) AS avg_units_sold,
+    SUM(price * sold) AS total_revenue,
+    ROUND(AVG(price), 2) AS avg_price
+FROM furniture_products
+GROUP BY tag_text
+ORDER BY total_units_sold DESC;
+
+-- Query 17: Shipping impact on sales (products with sales only)
+SELECT 
+    tag_text,
+    COUNT(*) AS products_with_sales,
+    SUM(sold) AS total_sold,
+    ROUND(AVG(sold), 2) AS avg_sold,
+    ROUND(AVG(price), 2) AS avg_price
+FROM furniture_products
+WHERE sold > 0
+GROUP BY tag_text
+ORDER BY avg_sold DESC;
+
+-- =============================================
+-- SECTION 6: PRODUCT TITLE ANALYSIS
+-- =============================================
+
+-- Query 18: Products with specific keywords
+SELECT 
+    product_title,
+    price,
+    sold,
+    (price * sold) AS revenue
+FROM furniture_products
+WHERE product_title LIKE '%Chair%'
+ORDER BY sold DESC
+LIMIT 10;
+
+-- Query 19: Average performance by product type (keyword-based)
+SELECT 
+    CASE 
+        WHEN product_title LIKE '%Chair%' THEN 'Chairs'
+        WHEN product_title LIKE '%Table%' OR product_title LIKE '%Desk%' THEN 'Tables/Desks'
+        WHEN product_title LIKE '%Bed%' OR product_title LIKE '%Dresser%' THEN 'Bedroom'
+        WHEN product_title LIKE '%Sofa%' OR product_title LIKE '%Couch%' THEN 'Sofas'
+        WHEN product_title LIKE '%Storage%' OR product_title LIKE '%Cabinet%' THEN 'Storage'
+        ELSE 'Other'
+    END AS product_category,
+    COUNT(*) AS product_count,
+    ROUND(AVG(price), 2) AS avg_price,
+    ROUND(AVG(sold), 2) AS avg_sold,
+    SUM(price * sold) AS total_revenue
+FROM furniture_products
+GROUP BY product_category
+ORDER BY total_revenue DESC;
+
+-- Query 20: Title length analysis
+SELECT 
+    CASE 
+        WHEN LENGTH(product_title) < 50 THEN 'Short (< 50 chars)'
+        WHEN LENGTH(product_title) BETWEEN 50 AND 100 THEN 'Medium (50-100 chars)'
+        ELSE 'Long (> 100 chars)'
+    END AS title_length,
+    COUNT(*) AS product_count,
+    ROUND(AVG(sold), 2) AS avg_sold,
+    ROUND(AVG(price), 2) AS avg_price
+FROM furniture_products
+GROUP BY title_length
+ORDER BY avg_sold DESC;
+
+-- =============================================
+-- SECTION 7: ADVANCED ANALYTICS
+-- =============================================
+
+-- Query 21: Products performing above average
+SELECT 
+    product_title,
+    price,
+    sold,
+    (price * sold) AS revenue
+FROM furniture_products
+WHERE sold > (SELECT AVG(sold) FROM furniture_products)
+ORDER BY sold DESC
+LIMIT 20;
+
+-- Query 22: Price vs Sales correlation indicator
+SELECT 
+    CASE 
+        WHEN price < 50 THEN 'Low Price'
+        WHEN price BETWEEN 50 AND 150 THEN 'Medium Price'
+        ELSE 'High Price'
+    END AS price_category,
+    COUNT(*) AS products,
+    SUM(sold) AS total_sold,
+    ROUND(AVG(sold), 2) AS avg_sold,
+    ROUND(SUM(price * sold), 2) AS revenue
+FROM furniture_products
+GROUP BY price_category
+ORDER BY price_category;
+
+-- Query 23: Pareto Analysis (80/20 rule - top products generating most revenue)
+WITH revenue_products AS (
+    SELECT 
+        product_title,
+        price,
+        sold,
+        (price * sold) AS revenue,
+        SUM(price * sold) OVER (ORDER BY (price * sold) DESC) AS cumulative_revenue,
+        SUM(price * sold) OVER () AS total_revenue
+    FROM furniture_products
+    WHERE sold > 0
+)
+SELECT 
+    product_title,
+    price,
+    sold,
+    revenue,
+    ROUND((cumulative_revenue / total_revenue * 100), 2) AS cumulative_percentage
+FROM revenue_products
+WHERE (cumulative_revenue / total_revenue) <= 0.80
+ORDER BY revenue DESC;
+
+-- Query 24: Monthly trend analysis (if date field available)
+-- This assumes you have a date field; adjust as needed
+SELECT 
+    DATE_FORMAT(created_at, '%Y-%m') AS month,
+    COUNT(*) AS products_listed,
+    SUM(sold) AS total_sold,
+    SUM(price * sold) AS monthly_revenue,
+    ROUND(AVG(price), 2) AS avg_price
+FROM furniture_products
+GROUP BY month
+ORDER BY month DESC;
+
+-- Query 25: Performance quartiles
+WITH quartile_data AS (
+    SELECT 
+        product_title,
+        price,
+        sold,
+        (price * sold) AS revenue,
+        NTILE(4) OVER (ORDER BY sold) AS sales_quartile
+    FROM furniture_products
+)
+SELECT 
+    sales_quartile,
+    COUNT(*) AS product_count,
+    ROUND(AVG(sold), 2) AS avg_sold,
+    ROUND(AVG(price), 2) AS avg_price,
+    SUM(revenue) AS total_revenue
+FROM quartile_data
+GROUP BY sales_quartile
+ORDER BY sales_quartile;
+
+-- =============================================
+-- SECTION 8: BUSINESS INSIGHTS QUERIES
+-- =============================================
+
+-- Query 26: Underperforming products (low sales despite reasonable price)
+SELECT 
+    product_title,
+    price,
+    sold,
+    tag_text
+FROM furniture_products
+WHERE price < (SELECT AVG(price) FROM furniture_products)
+  AND sold < (SELECT AVG(sold) FROM furniture_products)
+ORDER BY price DESC
+LIMIT 20;
+
+-- Query 27: Success rate by price point
+SELECT 
+    ROUND(price / 10) * 10 AS price_bucket,
+    COUNT(*) AS total_products,
+    COUNT(CASE WHEN sold > 0 THEN 1 END) AS products_with_sales,
+    ROUND((COUNT(CASE WHEN sold > 0 THEN 1 END) * 100.0 / COUNT(*)), 2) AS success_rate_percentage
+FROM furniture_products
+GROUP BY price_bucket
+HAVING COUNT(*) >= 5
+ORDER BY price_bucket;
+
+-- Query 28: Create summary report
+SELECT 
+    'Total Products' AS metric,
+    COUNT(*) AS value
+FROM furniture_products
+UNION ALL
+SELECT 
+    'Products with Sales',
+    COUNT(*)
+FROM furniture_products
+WHERE sold > 0
+UNION ALL
+SELECT 
+    'Total Units Sold',
+    SUM(sold)
+FROM furniture_products
+UNION ALL
+SELECT 
+    'Total Revenue',
+    ROUND(SUM(price * sold), 2)
+FROM furniture_products
+UNION ALL
+SELECT 
+    'Average Price',
+    ROUND(AVG(price), 2)
+FROM furniture_products
+UNION ALL
+SELECT 
+    'Average Units Sold',
+    ROUND(AVG(sold), 2)
+FROM furniture_products;
+
+-- =============================================
+-- SECTION 9: EXPORT QUERIES FOR EXCEL
+-- =============================================
+
+-- Query 29: Create pivot-ready dataset
+SELECT 
+    product_title,
+    price,
+    sold,
+    tag_text,
+    (price * sold) AS revenue,
+    CASE 
+        WHEN price < 50 THEN 'Under $50'
+        WHEN price BETWEEN 50 AND 100 THEN '$50-$100'
+        WHEN price BETWEEN 100 AND 200 THEN '$100-$200'
+        ELSE 'Over $200'
+    END AS price_category,
+    CASE 
+        WHEN sold = 0 THEN 'No Sales'
+        WHEN sold BETWEEN 1 AND 10 THEN 'Low Sales'
+        WHEN sold BETWEEN 11 AND 50 THEN 'Medium Sales'
+        ELSE 'High Sales'
+    END AS sales_category
+FROM furniture_products
+ORDER BY revenue DESC;
+
+-- Query 30: Executive summary for reporting
+SELECT 
+    tag_text AS shipping_type,
+    COUNT(*) AS total_products,
+    COUNT(CASE WHEN sold > 0 THEN 1 END) AS products_sold,
+    ROUND((COUNT(CASE WHEN sold > 0 THEN 1 END) * 100.0 / COUNT(*)), 2) AS conversion_rate,
+    SUM(sold) AS total_units,
+    ROUND(AVG(sold), 2) AS avg_units,
+    ROUND(AVG(price), 2) AS avg_price,
+    ROUND(SUM(price * sold), 2) AS total_revenue
+FROM furniture_products
+GROUP BY tag_text
+ORDER BY total_revenue DESC;
